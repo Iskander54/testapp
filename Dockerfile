@@ -15,10 +15,11 @@ RUN npm -v
 
 RUN pip install --upgrade pip
 RUN pip install flask
-RUN pip install flake8
-RUN pip install pytest
+
 
 WORKDIR /app/server
+RUN pip install flake8
+RUN pip install pytest
 RUN pip install -r requirements.txt
 
 
