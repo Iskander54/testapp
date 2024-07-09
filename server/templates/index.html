@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste de Contacts</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css">
+    <!-- SweetAlert CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@10.15.5/dist/sweetalert2.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Liste de Contsdsdacts</h1>
+        <button id="addContactBtn" class="btn btn-primary mb-3">Ajouter un Contact</button>
+        <table id="contactTable" class="table table-striped table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Prénom</th>
+                    <th>Nom</th>
+                    <th>Emploi</th>
+                    <th>Email</th>
+                    <th>Commentaire</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js"></script>
+    <!-- SweetAlert JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.15.5/dist/sweetalert2.all.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#contactTable').DataTable({
+                "ajax": "/contacts",
+                "language": {
+                    "url": "https://cdn.datatables.net/plug-ins/1.11.3/i18n/fr_fr.json"
+                },
+                "columns": [
+                    { "data": "first_name" },
+                    { "data": "last_name" },
+                    { "data": "job" },
+                    { "data": "email" },
+                    { "data": "comment" },
+                    {
+                        "data": null,
+                        "defaultContent": `
+                            <button class="btn btn-info btn-sm show-btn">Afficher</button>
+                            <button class="btn btn-warning btn-sm edit-btn">Modifier</button>
+                            <button class="btn btn-danger btn-sm delete-btn">Supprimer</button>
+                        `,
+                        "orderable": false
+                    }
+                ]
+            });
+
+            $('#contactTable tbody').on('click', '.show-btn', function () {
+                var data = table.row($(this).parents('tr')).data();
+                Swal.fire({
+                    title: 'Afficher le Contact',
+                    html: `
+                        <p><strong>Prénom:</strong> ${data.first_name}</p>
+                        <p><strong>Nom:</strong> ${data.last_name}</p>
+                        <p><strong>Emploi:</strong> ${data.job}</p>
+                        <p><strong>Email:</strong> ${data.email}</p>
+                        <p><strong>Commentaire:</strong> ${data.comment}</p>
+                    `
+                });
+            });
+
+            $('#contactTable tbody').on('click', '.edit-btn', function () {
+                var data = table.row($(this).parents('tr')).data();
+                Swal.fire({
+                    title: 'Modifier le Contact',
+                    html: `
+                        <input type="text" id="first_name" class="swal2-input" value="${data.first_name}" placeholder="Prénom">
+                        <input type="text" id="last_name" class="swal2-input" value="${data.last_name}" placeholder="Nom">
+                        <input type="text" id="job" class="swal2-input" value="${data.job}" placeholder="Emploi">
+                        <input type="email" id="email" class="swal2-input" value="${data.email}" placeholder="Email">
+                        <textarea id="comment" class="swal2-input" placeholder="Commentaire">${data.comment}</textarea>
+                    `,
+                    focusConfirm: false,
+                    preConfirm: () => {
+                        const first_name = Swal.getPopup().querySelector('#first_name').value;
+                        const last_name = Swal.getPopup().querySelector('#last_name').value;
+                        const job = Swal.getPopup().querySelector('#job').value;
+                        const email = Swal.getPopup().querySelector('#email').value;
+                        const comment = Swal.getPopup().querySelector('#comment').value;
+                        if (!first_name || !last_name || !job || !email) {
+                            Swal.showValidationMessage(`Veuillez remplir tous les champs`);
+                        }
+                        return { first_name: first_name, last_name: last_name, job: job, email: email, comment: comment };
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '/contacts/' + data.id,
+                            type: 'PUT',
+                            contentType: 'application/json',
+                            data: JSON.stringify(result.value),
+                            success: function(response) {
+                                Swal.fire('Modifié!', 'Le contact a été modifié.', 'success');
+                                table.ajax.reload();
+                            }
+                        });
+                    }
+                });
+            });
+
+            $('#contactTable tbody').on('click', '.delete-btn', function () {
+                var data = table.row($(this).parents('tr')).data();
+                Swal.fire({
+                    title: 'Êtes-vous sûr ?',
+                    text: `Voulez-vous supprimer le contact ${data.first_name} ${data.last_name} ?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Oui, supprimer!',
+                    cancelButtonText: 'Annuler'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '/contacts/' + data.id,
+                            type: 'DELETE',
+                            success: function(response) {
+                                Swal.fire('Supprimé!', 'Le contact a été supprimé.', 'success');
+                                table.ajax.reload();
+                            }
+                        });
+                    }
+                });
+            });
+
+            $('#addContactBtn').on('click', function () {
+                Swal.fire({
+                    title: 'Ajouter un Contact',
+                    html: `
+                        <input type="text" id="first_name" class="swal2-input" placeholder="Prénom">
+                        <input type="text" id="last_name" class="swal2-input" placeholder="Nom">
+                        <input type="text" id="job" class="swal2-input" placeholder="Emploi">
+                        <input type="email" id="email" class="swal2-input" placeholder="Email">
+                        <textarea id="comment" class="swal2-input" placeholder="Commentaire"></textarea>
+                    `,
+                    focusConfirm: false,
+                    preConfirm: () => {
+                        const first_name = Swal.getPopup().querySelector('#first_name').value;
+                        const last_name = Swal.getPopup().querySelector('#last_name').value;
+                        const job = Swal.getPopup().querySelector('#job').value;
+                        const email = Swal.getPopup().querySelector('#email').value;
+                        const comment = Swal.getPopup().querySelector('#comment').value;
+                        if (!first_name || !last_name || !job || !email) {
+                            Swal.showValidationMessage(`Veuillez remplir tous les champs`);
+                        }
+                        return { first_name: first_name, last_name: last_name, job: job, email: email, comment: comment };
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '/contacts',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify(result.value),
+                            success: function(response) {
+                                Swal.fire('Ajouté!', 'Le contact a été ajouté.', 'success');
+                                table.ajax.reload();
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
